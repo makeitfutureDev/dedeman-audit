@@ -1,0 +1,593 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dedeman · Audit pagini de produs · 9 noiembrie 2026</title>
+<meta name="description" content="Analiza paginilor live ale celor 10 produse din „Alegeri populare” de pe dedeman.ro: constatări, surse și implementarea recomandată.">
+<meta property="og:title" content="Dedeman · Audit pagini de produs · 9 noiembrie 2026">
+<meta property="og:description" content="Analiza paginilor live ale celor 10 produse din „Alegeri populare” de pe dedeman.ro: constatări, surse și implementarea recomandată.">
+<meta property="og:image" content="cover.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root{
+  --navy:#0d1b2a;--navy2:#13283d;--ink:#14212e;--muted:#64748b;--line:#e3e8ef;--bg:#f5f7fa;
+  --orange:#f26b1d;--orange-soft:#fff1e8;--red:#dc2626;--red-soft:#fef2f2;--amber:#d97706;--amber-soft:#fffbeb;
+  --green:#059669;--green-soft:#ecfdf5;--blue:#2563eb;
+  --sans:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--disp:'Space Grotesk',Inter,system-ui,'Segoe UI',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0a1520;overflow:hidden}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+#viewport{position:fixed;inset:0;display:grid;place-items:center}
+#stage{width:1600px;height:900px;position:relative;transform-origin:center center}
+.slide{position:absolute;inset:0;background:#fff;border-radius:18px;overflow:hidden;opacity:0;pointer-events:none;
+  transform:translateX(40px) scale(.985);transition:opacity .45s ease,transform .55s cubic-bezier(.2,.8,.2,1);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.slide.active{opacity:1;pointer-events:auto;transform:none}
+.slide.prev{transform:translateX(-40px) scale(.985)}
+h1,h2,h3,h4,.num,.big{font-family:var(--disp)}
+a{color:inherit}
+
+/* ---------- chrome ---------- */
+.bar{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(0,0,0,.06);z-index:5}
+.bar i{display:block;height:100%;background:var(--orange);transition:width .5s ease}
+#hud{position:fixed;right:22px;bottom:18px;display:flex;gap:8px;align-items:center;z-index:20;font:600 13px var(--sans);color:#9fb0c3}
+#hud button{all:unset;cursor:pointer;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08);color:#fff;font-size:18px;transition:background .2s}
+#hud button:hover{background:var(--orange)}
+#hint{position:fixed;left:50%;top:10px;transform:translateX(-50%);font:500 12px var(--sans);color:#8aa0b6;background:rgba(0,0,0,.4);padding:6px 14px;border-radius:999px;z-index:20;transition:opacity 1s}
+#hint.off{opacity:0}
+
+/* ---------- dark slides ---------- */
+.dark{background:radial-gradient(1200px 700px at 85% 10%,#1d3a57 0%,transparent 60%),linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff}
+.dark .muted{color:#9fb3c8}
+.kicker{font:700 14px var(--sans);letter-spacing:.22em;text-transform:uppercase;color:var(--orange)}
+.cover{padding:110px 120px}
+.cover h1{font-size:92px;line-height:.98;letter-spacing:-.03em;margin:28px 0 30px;font-weight:700}
+.cover h1 span{color:var(--orange)}
+.cover p.lead{font-size:26px;line-height:1.45;max-width:980px;color:#c9d6e3}
+.cover .meta{position:absolute;left:120px;bottom:90px;display:flex;gap:56px}
+.cover .meta div{font-size:15px;color:#8aa0b6}
+.cover .meta b{display:block;color:#fff;font-size:22px;margin-top:6px;font-weight:600}
+.thumbs{position:absolute;right:-40px;top:120px;display:grid;grid-template-columns:repeat(3,170px);gap:18px;transform:rotate(-8deg);opacity:.95}
+.thumbs div{width:170px;height:170px;background:#fff;border-radius:22px;display:grid;place-items:center;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.thumbs img{max-width:80%;max-height:80%;object-fit:contain}
+
+/* ---------- generic light slide ---------- */
+.pad{padding:70px 90px}
+.slide h2.title{font-size:54px;line-height:1.05;letter-spacing:-.02em;margin:14px 0 18px;font-weight:700}
+.sub{font-size:21px;color:var(--muted);max-width:1150px;line-height:1.5}
+
+/* context slide */
+.ctx{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;margin-top:50px}
+.ctx .card{background:var(--bg);border-radius:18px;padding:34px 32px;border:1px solid var(--line)}
+.ctx .card .ico{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-size:28px;margin-bottom:22px}
+.ctx h3{font-size:25px;margin-bottom:12px}
+.ctx p{font-size:17px;line-height:1.55;color:#475569}
+.legend{display:flex;gap:16px;margin-top:40px;flex-wrap:wrap}
+.legend .chip{font-size:16px;padding:10px 16px}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:8px;font:700 12.5px var(--sans);padding:6px 11px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.fail{background:var(--red-soft);color:var(--red)}
+.chip.gap{background:var(--amber-soft);color:var(--amber)}
+.chip.idea{background:var(--green-soft);color:var(--green)}
+.chip.sev{background:#eef2f7;color:#334155}
+.chip.sev::before{display:none}
+.chip.sev.p1{background:#1e293b;color:#fff}
+
+/* summary slide */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin:34px 0 30px}
+.kpi{border-radius:18px;padding:24px 28px;background:var(--bg);border:1px solid var(--line)}
+.kpi .big{font-size:58px;font-weight:700;line-height:1}
+.kpi span{display:block;font-size:16px;color:var(--muted);margin-top:8px}
+.kpi.fail .big{color:var(--red)}.kpi.gap .big{color:var(--amber)}.kpi.p1 .big{color:#1e293b}.kpi.idea .big{color:var(--green)}
+.tbl{width:100%;border-collapse:separate;border-spacing:0 6px}
+.tbl td{background:var(--bg);padding:9px 16px;font-size:16.5px}
+.tbl td:first-child{border-radius:12px 0 0 12px;width:60px}
+.tbl td:last-child{border-radius:0 12px 12px 0}
+.tbl .n{font:700 20px var(--disp);color:var(--orange)}
+.tbl .nm{font-weight:700}
+.tbl .ct{color:var(--muted);font-size:14px}
+.dots{display:flex;gap:6px}
+.dots i{width:14px;height:14px;border-radius:50%;display:inline-block}
+.dots i.fail{background:var(--red)}.dots i.gap{background:var(--amber)}.dots i.idea{background:var(--green)}
+.tbl a{text-decoration:none;cursor:pointer}
+.tbl tr:hover td{background:#eef2f7}
+.vd{font-size:14.5px;color:#475569}
+
+/* patterns slide */
+.pats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}
+.pat{border-radius:20px;padding:30px;background:var(--bg);border:1px solid var(--line);position:relative}
+.pat .big{font-size:46px;font-weight:700;color:var(--orange);line-height:1}
+.pat h3{font-size:23px;margin:14px 0 10px}
+.pat p{font-size:16px;line-height:1.5;color:#475569}
+.pat .ex{margin-top:14px;font-size:14px;color:var(--muted)}
+.pat.wide{grid-column:span 1}
+
+/* ---------- product slides ---------- */
+.prod{display:grid;grid-template-columns:440px 1fr;height:100%}
+.side{background:linear-gradient(180deg,#0f2133 0%,#16304a 100%);color:#fff;padding:44px 40px 40px;display:flex;flex-direction:column}
+.side .idx{display:flex;align-items:baseline;gap:14px}
+.side .idx .num{font-size:64px;font-weight:700;color:var(--orange);line-height:1}
+.side .idx .of{font-size:18px;color:#7f97ad}
+.side .cat{font:700 13px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:#9fb3c8;margin-top:8px}
+.imgbox{margin:22px 0 20px;height:270px;flex-shrink:0;background:#fff;border-radius:20px;display:grid;place-items:center;overflow:hidden}
+.imgbox img{width:100%;height:100%;object-fit:contain;padding:18px}
+.side h2{font:600 19px/1.32 var(--sans)}
+.side h2.long{font-size:16px}
+.side .sku{font-size:13.5px;color:#7f97ad;margin-top:8px}
+.pricebox{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;border-top:1px solid rgba(255,255,255,.12);padding-top:20px}
+.pricebox .now{font:700 32px var(--disp);white-space:nowrap;line-height:1}
+.pricebox .was{font-size:15px;color:#7f97ad;text-decoration:line-through;margin-top:6px}
+.pricebox .pr{font-size:13px;color:#ffb98a;text-align:right;max-width:170px}
+.pricebox a{display:inline-block;margin-top:8px;font-size:13px;color:#9fd1ff}
+
+.main{padding:40px 48px 34px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.verdict{display:flex;align-items:center;gap:16px}
+.verdict .v{font:600 27px/1.25 var(--disp);letter-spacing:-.01em;flex:1}
+.score{display:flex;gap:8px;flex-shrink:0}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.col{border-radius:18px;padding:22px 24px;border:1px solid var(--line);background:var(--bg)}
+.col.rec{background:var(--green-soft);border-color:#a7f3d0}
+.col h3{font:800 13px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.col.rec h3{color:var(--green)}
+.col ul{list-style:none}
+.col li{font-size:19px;line-height:1.5;padding-left:22px;position:relative;margin-bottom:12px}
+.col li::before{content:"";position:absolute;left:4px;top:11px;width:7px;height:7px;border-radius:50%;background:#94a3b8}
+.col .keep{font:800 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-top:16px;padding-top:14px;border-top:1px dashed #6ee7b7;margin-bottom:8px}
+.col .good li{font-size:16px;color:#065f46;margin-bottom:5px}
+.col .good li::before{content:"✓";background:none;width:auto;height:auto;top:0;left:2px;color:var(--green);font-weight:800}
+.col .tgt{font-size:22px;line-height:1.55;color:#064e3b}
+.col .tgt b{color:#065f46}
+.cmp{flex:1}
+.issues{display:grid;gap:16px}
+.issue{border-radius:16px;border:1px solid var(--line);padding:18px 20px;display:flex;flex-direction:column;gap:9px;position:relative;overflow:hidden;background:#fff}
+.issue::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px}
+.issue.fail::before{background:var(--red)}.issue.gap::before{background:var(--amber)}.issue.idea::before{background:var(--green)}
+.issue .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.issue h4{font:700 20px/1.25 var(--disp)}
+.issue p{font-size:16px;line-height:1.45;color:#475569}
+.issue .fix{margin-top:auto;font-size:15.5px;line-height:1.45;color:#0f172a;background:var(--bg);border-radius:10px;padding:9px 12px}
+.issue .fix b{color:var(--orange)}
+.sect{font:800 13px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:-8px}
+.foot{font-size:12.5px;color:#94a3b8;display:flex;justify-content:space-between;gap:20px}
+
+/* next steps */
+.steps{display:grid;grid-template-columns:repeat(2,1fr);gap:64px 56px;margin-top:70px}
+.step{display:flex;gap:22px;align-items:flex-start}
+.step .big{flex-shrink:0;width:72px;height:72px;border-radius:18px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:28px;font-weight:700}
+.step h3{font-size:28px;margin-bottom:10px}
+.step p{font-size:19px;line-height:1.55;color:#c9d6e3}
+
+/* overview grid (press O) */
+body.grid #viewport{place-items:start center;overflow:auto;padding:30px 0}
+body.grid{overflow:auto}
+body.grid #stage{transform:none!important;width:auto;height:auto;display:grid;grid-template-columns:repeat(4,384px);gap:22px}
+body.grid .slide{position:relative;width:1600px;height:900px;opacity:1;pointer-events:auto;transform:scale(.24)!important;transform-origin:top left;margin:0 -1216px -684px 0;cursor:pointer;outline:6px solid transparent}
+body.grid .slide.active{outline-color:var(--orange)}
+body.grid #hud,body.grid #hint{display:none}
+
+@media print{
+  @page{size:1600px 900px;margin:0}
+  html,body{overflow:visible;background:#fff;height:auto}
+  #viewport{position:static;display:block}
+  #stage{transform:none!important;width:1600px;height:auto}
+  .slide{position:relative;opacity:1!important;transform:none!important;border-radius:0;box-shadow:none;width:1600px;height:900px;page-break-after:always;break-after:page}
+  #hud,#hint,.bar{display:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+.issues.four{grid-template-columns:1fr 1fr!important;gap:12px}
+.issues.four .issue{padding:13px 16px;gap:6px}
+.issues.four .issue h4{font-size:17px}
+.issues.four .issue p{font-size:14px;line-height:1.4}
+.issues.four .issue .fix{font-size:14px;padding:7px 11px}
+.main.dense{gap:14px;padding-top:34px;padding-bottom:26px}
+.main.dense .col{padding:16px 20px}
+.main.dense .col li{font-size:16.5px;margin-bottom:7px;line-height:1.42}
+.main.dense .col .tgt{font-size:18px;line-height:1.5}
+.main.dense .col .good li{font-size:14.5px;margin-bottom:3px}
+.main.dense .col .keep{margin-top:10px;padding-top:10px}
+.main.dense .verdict .v{font-size:24px}
+.main.dense .cmp{flex:0 0 auto}
+.main.dense .issues{flex:1}
+.st{font:700 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:6px;margin-left:auto}
+.st.nou{background:#eef2ff;color:#4338ca}
+.st.confirmat{background:#f1f5f9;color:#475569}
+.srcline{font-size:12.5px;color:#64748b}
+.srcline b{color:#334155}
+.seo{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px;margin-top:34px}
+.seo .row{display:flex;gap:18px;align-items:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.seo .row .big{flex-shrink:0;min-width:76px;font-size:34px;font-weight:700;color:var(--orange);line-height:1}
+.seo .row h3{font-size:20px;margin-bottom:6px}
+.seo .row p{font-size:15.5px;line-height:1.45;color:#475569}
+.seo .row code{font:500 13.5px ui-monospace,Menlo,monospace;background:#fff;border:1px solid var(--line);padding:1px 6px;border-radius:5px}
+.hl{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:32px}
+.hl .c{border-radius:18px;padding:24px 26px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.hl .c .tag{font:700 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+.hl .c h3{font-size:22px;margin:10px 0 8px;color:#fff}
+.hl .c p{font-size:15.5px;line-height:1.5;color:#c9d6e3}
+.srcs{margin-top:26px;font-size:14px;color:#8aa0b6;line-height:1.6}
+.srcs b{color:#fff}
+
+html,body{background:#0a1520}
+#viewport{display:flex!important;align-items:center;justify-content:center;overflow:hidden}
+#stage{flex-shrink:0}
+/* portrait / narrow screens: slides stacked vertically, each scaled to the screen width */
+body.stack{overflow-x:hidden;overflow-y:auto;height:auto}
+body.stack #viewport{position:static;display:block!important;padding:10px 0 40px;overflow:visible}
+body.stack #stage{transform:none!important;width:100%;height:auto;display:flex;flex-direction:column;align-items:center}
+body.stack .slide{position:relative;width:1600px;height:900px;inset:auto;opacity:1;pointer-events:auto;transform:scale(var(--s))!important;transform-origin:top center;
+  margin-bottom:calc(900px * var(--s) - 900px + 12px);flex-shrink:0;border-radius:18px}
+body.stack #hud,body.stack #hint{display:none}
+</style></head><body>
+<div id="viewport"><div id="stage"><section class="slide dark cover">
+  <div class="thumbs"><div><img src="https://cdn.dedeman.ro/media/catalog/product/2/0/2035219_2.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div><div><img src="https://cdn.dedeman.ro/media/catalog/product/3/0/3055360_3.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div><div><img src="https://cdn.dedeman.ro/media/catalog/product/1/0/1040099_2.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div><div><img src="https://cdn.dedeman.ro/media/catalog/product/8/0/8099591_8.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div><div><img src="https://cdn.dedeman.ro/media/catalog/product/4/0/4017201_5.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div><div><img src="https://cdn.dedeman.ro/media/catalog/product/8/1/8121830_1.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="" referrerpolicy="no-referrer"></div></div>
+  <div class="kicker">Audit pagini de produs · dedeman.ro</div>
+  <h1>10 produse populare.<br>Cât de bine<br><span>vând paginile?</span></h1>
+  <p class="lead">Am analizat paginile live ale celor 10 produse din „Alegeri populare”: ce funcționează deja, unde datele se contrazic și cum ar arăta implementarea recomandată.</p>
+  <div class="meta"><div>Data<b>9 noiembrie 2026</b></div><div>Pregătit pentru<b>Dedeman</b></div><div>Realizat de<b>Makeitfuture</b></div></div>
+  <div class="bar"><i></i></div></section><section class="slide pad">
+  <div class="kicker">Context & metodă</div>
+  <h2 class="title">Ce am analizat și cum</h2>
+  <p class="sub">Fiecare pagină a fost evaluată pe trei întrebări: <b>informația e corectă?</b> · <b>poate clientul alege informat?</b> · <b>pagina e pregătită pentru Google și Shopping?</b></p>
+  <div class="ctx">
+    <div class="card"><div class="ico" style="background:#fff1e8">⭐</div><h3>Selecția</h3><p>Primele 10 produse distincte din secțiunea <b>„Alegeri populare”</b> de pe homepage, pe 9 noiembrie 2026, în timpul campaniei Black Friday.</p></div>
+    <div class="card"><div class="ico" style="background:#eff6ff">🔍</div><h3>Sursele</h3><p>Paginile live, documentele atașate (manuale, fișe), site-urile și manualele producătorilor. Fiecare constatare are o sursă verificabilă.</p></div>
+    <div class="card"><div class="ico" style="background:#ecfdf5">🛡️</div><h3>Limitele</h3><p>Nu am plasat comenzi și nu am testat stocul sau livrarea pe localitate. Prețurile sunt cele afișate la data analizei.</p></div>
+  </div>
+  <div class="legend">
+    <span class="chip fail">Eroare confirmată — date contradictorii sau greșite</span>
+    <span class="chip gap">De confirmat — afirmație fără sursă verificabilă</span>
+    <span class="chip idea">Îmbunătățire — corect, dar poate fi mai clar</span>
+    <span class="chip sev p1">P1 — afectează decizia de cumpărare</span>
+    <span class="chip sev">P2 — calitate & claritate</span>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide pad" style="padding-top:50px">
+  <div class="kicker">Rezumat</div>
+  <h2 class="title" style="margin-bottom:0">Pagini bogate, cu date care nu se potrivesc mereu</h2>
+  <div class="kpis" style="margin:26px 0 24px">
+    <div class="kpi"><div class="big">37</div><span>constatări pe cele 10 pagini, fiecare cu sursă</span></div>
+    <div class="kpi fail"><div class="big">7</div><span>erori confirmate (date contradictorii sau greșite)</span></div>
+    <div class="kpi p1"><div class="big">14</div><span>cu prioritate P1 (afectează decizia de cumpărare)</span></div>
+    <div class="kpi idea"><div class="big">10/10</div><span>pagini cu aceleași lipsuri SEO, reparabile o dată în șablon</span></div>
+  </div>
+  <div style="display:flex;gap:18px;margin:-8px 0 6px;justify-content:flex-end"><span class="chip fail">eroare confirmată</span><span class="chip gap">de confirmat</span><span class="chip idea">îmbunătățire</span></div>
+  <table class="tbl"><tr><td><a data-go="4" href="#"><span class="n">01</span></a></td>
+          <td><a data-go="4" href="#"><span class="nm">Prosop uscare auto Flash Detail</span> <span class="ct">· Cosmetică auto</span></a></td>
+          <td class="vd">Pagină coerentă; cifra „de 3 ori mai multă apă” nu are sursă.</td><td><div class="dots"><i class="gap"></i><i class="idea"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="5" href="#"><span class="n">02</span></a></td>
+          <td><a data-go="5" href="#"><span class="nm">Fotoliu balansoar Epping, verde</span> <span class="ct">· Fotolii balansoar</span></a></td>
+          <td class="vd">Sarcina maximă diferă: 110 kg pe pagină, 80 kg în instrucțiuni.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="6" href="#"><span class="n">03</span></a></td>
+          <td><a data-go="6" href="#"><span class="nm">Aer condiționat Paxton 12000 BTU</span> <span class="ct">· Aer condiționat</span></a></td>
+          <td class="vd">Eticheta energetică lipsește, iar unele valori tehnice sunt de confirmat.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="gap"></i><i class="gap"></i></div></td></tr><tr><td><a data-go="7" href="#"><span class="n">04</span></a></td>
+          <td><a data-go="7" href="#"><span class="nm">Mașină spălat Albatros WMS 5.3</span> <span class="ct">· Mașini de spălat</span></a></td>
+          <td class="vd">Date corecte, dar lipsesc dimensiunile, greutatea și manualul.</td><td><div class="dots"><i class="gap"></i><i class="gap"></i><i class="gap"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="8" href="#"><span class="n">05</span></a></td>
+          <td><a data-go="8" href="#"><span class="nm">Espressor Samus Latteccino 20</span> <span class="ct">· Espressoare</span></a></td>
+          <td class="vd">Pagină bine documentată; tabelul indică 5 băuturi, manualul indică 7.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="9" href="#"><span class="n">06</span></a></td>
+          <td><a data-go="9" href="#"><span class="nm">Sistem duș AM.PM X-Joy S F0785B300</span> <span class="ct">· Sisteme de duș</span></a></td>
+          <td class="vd">Pagină bogată și coerentă; câteva valori tehnice cer confirmare.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="idea"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="10" href="#"><span class="n">07</span></a></td>
+          <td><a data-go="10" href="#"><span class="nm">Brad artificial Bucovina 180 cm</span> <span class="ct">· Brazi artificiali</span></a></td>
+          <td class="vd">Ofertă clară cu variante de înălțime; meta description afișează cod HTML.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="gap"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="11" href="#"><span class="n">08</span></a></td>
+          <td><a data-go="11" href="#"><span class="nm">Gresie Cesarom Woodstyle 30×60 bej</span> <span class="ct">· Gresie porțelanată</span></a></td>
+          <td class="vd">Logica m²/cutie e corectă; culoarea și uzul exterior cer clarificare.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="idea"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="12" href="#"><span class="n">09</span></a></td>
+          <td><a data-go="12" href="#"><span class="nm">Birou Doctor Shield Nova electric</span> <span class="ct">· Birouri gaming</span></a></td>
+          <td class="vd">Descriere convingătoare, dar date-cheie lipsesc din tabelul tehnic.</td><td><div class="dots"><i class="gap"></i><i class="idea"></i><i class="idea"></i><i class="idea"></i></div></td></tr><tr><td><a data-go="13" href="#"><span class="n">10</span></a></td>
+          <td><a data-go="13" href="#"><span class="nm">Aspirator Kärcher T 7/1 Classic</span> <span class="ct">· Aspiratoare profesionale</span></a></td>
+          <td class="vd">Cea mai bine documentată pagină; mici diferențe față de fișa Kärcher.</td><td><div class="dots"><i class="fail"></i><i class="gap"></i><i class="gap"></i><i class="idea"></i></div></td></tr></table>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">01</span><span class="of">/ 10</span></div>
+      <div class="cat">Cosmetică auto</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/1/1/1118242.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Prosop uscare auto, Flash Detail, pentru suprafete exterioare, microfibra, 90 x 70 cm, albastru" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Prosop uscare auto, Flash Detail, pentru suprafete exterioare, microfibra, 90 x 70 cm, albastru</h2>
+      <div class="sku">Cod produs 1118242</div>
+      <div class="pricebox"><div><div class="now">84,90 lei</div><div class="was">119,90 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/prosop-uscare-auto-flash-detail-pentru-suprafete-exterioare-microfibra-90-x-70-cm-albastru/p/1118242" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Pagină coerentă; cifra „de 3 ori mai multă apă” nu are sursă.</div><div class="score"><span class="chip gap">1 de confirmat</span><span class="chip idea">2 îmbunătățiri</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Titlul și H1 includ brandul, materialul, dimensiunea și culoarea; densitatea 850 gsm apare doar în descriere și tabel.</li><li>Tabelul tehnic este coerent: 90 x 70 cm la 850 g/m² ≈ 535 g, apropiat de greutatea afișată de 550 g.</li><li>Descrierea afirmă că reține „de până la 3 ori mai multă apă” decât un prosop obișnuit, fără sursă sau metodă.</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Titlu cu <b>850 gsm</b>, tabel completat cu fețe și compoziția fibrei, afirmația „de 3 ori” însoțită de <b>sursa producătorului</b> sau eliminată, microdata cu <b>sku, brand, gtin și availability</b>.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Brand, cod furnizor și conținut pachet în tabel</li><li>Greutate coerentă cu densitatea și suprafața</li><li>Instrucțiuni de îngrijire: max. 40 °C, fără balsam</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues" style="grid-template-columns:repeat(3,1fr)"><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Afirmația „de 3 ori” fără sursă</h4><p>Descrierea: reține „de până la 3 ori mai multă apă”; pagina nu indică testul sau sursa producătorului.</p><div class="fix"><b>→</b> Adăugați sursa producătorului sau reformulați fără cifră.</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Compoziție și fețe neprecizate</h4><p>Imaginile arată o față Twisted Loop și una țesută; tabelul nu indică numărul de fețe și compoziția fibrei.</p><div class="fix"><b>→</b> Adăugați „Fețe” și compoziția (%) din fișa producătorului.</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>850 gsm lipsește din titlu</h4><p>Densitatea, principalul criteriu de comparație la prosoape de uscare, apare doar în descriere și tabel.</p><div class="fix"><b>→</b> Includeți „850 gsm” în titlu, ca pe pagina producătorului.</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · flashdetail.com (Flash Detail V2, 850 gsm, 90 x 70 cm)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">02</span><span class="of">/ 10</span></div>
+      <div class="cat">Fotolii balansoar</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/8/0/8099591_8.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Fotoliu balansoar Grandio Mob Epping, material textil, verde, 1C" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Fotoliu balansoar Grandio Mob Epping, material textil, verde, 1C</h2>
+      <div class="sku">Cod produs 8099591</div>
+      <div class="pricebox"><div><div class="now">399,00 lei</div><div class="was">599,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/fotoliu-balansoar-grandio-mob-epping-material-textil-verde-1c/p/8099591" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Sarcina maximă diferă: 110 kg pe pagină, 80 kg în instrucțiuni.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">1 de confirmat</span><span class="chip idea">1 îmbunătățire</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Descrierea și tabelul indică „greutate suportată 110 kg”; instrucțiunile de montaj atașate indică „80 kg MAX”.</li><li>Dimensiunile 67 x 85 x 96 cm sunt consecvente în descriere și tabel; lipsesc înălțimea și adâncimea șezutului.</li><li>Brandul „Grandio Mob” apare doar în titlu; tabelul nu are câmpuri Brand sau Model.</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">O singură valoare a <b>sarcinii maxime</b>, confirmată de furnizor, în descriere, tabel și PDF; tabel cu <b>brand, înălțime șezut, greutate și colet</b>; tapițerie precizată; microdata cu sku, brand, gtin și availability.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Instrucțiuni de montaj PDF atașate</li><li>Imagini fidele culorii și structurii descrise</li><li>Livrare demontată și fără montaj, spus clar</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues" style="grid-template-columns:repeat(3,1fr)"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p1">P1</span></div>
+          <h4>Sarcină maximă contradictorie</h4><p>Pagina: 110 kg (descriere și tabel). Instrucțiunile de montaj 8099591/8099592: „80 kg MAX”.</p><div class="fix"><b>→</b> Confirmați valoarea cu furnizorul și aliniați pagina cu PDF-ul.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Lipsă brand și cote de șezut</h4><p>Tabelul nu are Brand/Model, înălțimea șezutului, greutatea netă sau dimensiunile coletului.</p><div class="fix"><b>→</b> Adăugați brand, înălțime șezut, greutate și colet.</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Tapițeria „catifelată” doar în text</h4><p>Descrierea: „textil catifelat”; tabelul: „burete, textil”, fără tip de țesătură sau compoziție.</p><div class="fix"><b>→</b> Adăugați tipul tapițeriei și compoziția în tabel.</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · instrucțiuni montaj Epping (PDF Dedeman)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">03</span><span class="of">/ 10</span></div>
+      <div class="cat">Aer condiționat</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/2/0/2035219_2.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Aparat aer conditionat Paxton TAC-12CHSD, 12000 BTU, A+++/A++, inverter, Wi-Fi, kit instalare, R32, dezumidificare, sterilizare UV, ionizare, filtru aer, mod ECO, mod de noapte, mod auto, alb" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="long">Aparat aer conditionat Paxton TAC-12CHSD, 12000 BTU, A+++/A++, inverter, Wi-Fi, kit instalare, R32, dezumidificare, sterilizare UV, ionizare, filtru aer, mod ECO, mod de noapte, mod auto, alb</h2>
+      <div class="sku">Cod produs 2032584</div>
+      <div class="pricebox"><div><div class="now">1.799,00 lei</div><div class="was">1.899,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/aparat-aer-conditionat-paxton-tac-12chsd-12000-btu-a/a-inverter-wi-fi-kit-instalare-r32-dezumidificare-sterilizare-uv-ionizare-filtru-aer-mod-eco-mod-de-noapte-mod-auto-alb/p/2032584" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Eticheta energetică lipsește, iar unele valori tehnice sunt de confirmat.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">3 de confirmate</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Lângă preț nu apar eticheta energetică, fișa produsului sau linkul EPREL; singurul PDF este manualul aplicației Wi-Fi.</li><li>Tabelul are SEER 8,5 / SCOP 4,6, dar 3400/3420 W și 550 m³/h, valori identice cu listarea Paxton A++ (SEER 6,1).</li><li>Descrierea afirmă eliminarea virușilor și un filtru cu vitamina C care „crește imunitatea”, fără test sau certificare.</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt"><b>Etichetă energetică</b> și fișa produsului lângă preț, cu link EPREL; cod complet al modelului și valori de putere/debit/zgomot preluate din <b>fișa oficială</b>; afirmații de sănătate doar cu test; manual de utilizare atașat.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Taxa verde și taxa pe baterii afișate lângă preț</li><li>Conținutul kitului de instalare detaliat (3 m)</li><li>Tabel tehnic amplu: SEER/SCOP, R32, dimensiuni</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p1">P1</span></div>
+          <h4>Etichetă energetică absentă</h4><p>Titlul afișează A+++/A++, dar pagina nu arată eticheta, fișa produsului sau numărul EPREL.</p><div class="fix"><b>→</b> Afișați eticheta lângă preț, fișa produsului și linkul EPREL.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Date tehnice de confirmat</h4><p>Pagina: 3400/3420 W, 550 m³/h, 50 dB. Listări TAC-12CHSD/TP31I3A: 3510/3800 W, 670 m³/h, 53 dB.</p><div class="fix"><b>→</b> Verificați cu fișa producătorului/EPREL; afișați codul complet.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Afirmații de sănătate nedovedite</h4><p>„Distruge bacteriile și virușii”; filtrul cu vitamina C „crește imunitatea”; niciun test atașat.</p><div class="fix"><b>→</b> Eliminați afirmațiile sau atașați rapoartele de test.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Manual de utilizare lipsă</h4><p>Singurul document atașat este manualul Wi-Fi; lipsesc manualul de utilizare și cel de instalare.</p><div class="fix"><b>→</b> Atașați manualul de utilizare și instalare al modelului.</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · listări Roveli/eMAG TAC-12CHSD · Reg. UE 518/2014</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">04</span><span class="of">/ 10</span></div>
+      <div class="cat">Mașini de spălat</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/3/0/3043124_1.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Masina de spalat semiautomata Albatros WMS 5.3, cu storcator, 48 litri, 5 kg, alb + albastru" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Masina de spalat semiautomata Albatros WMS 5.3, cu storcator, 48 litri, 5 kg, alb + albastru</h2>
+      <div class="sku">Cod produs 3043124</div>
+      <div class="pricebox"><div><div class="now">538,00 lei</div><div class="was">599,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/masina-de-spalat-semiautomata-albatros-wms-5-3-cu-storcator-48-litri-5-kg-alb-albastru/p/3043124" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Date corecte, dar lipsesc dimensiunile, greutatea și manualul.</div><div class="score"><span class="chip gap">3 de confirmate</span><span class="chip idea">1 îmbunătățire</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Puterile 350/120 W, capacitățile 5/2,5 kg, cuva de 48 l și apa max. 60 °C coincid cu pagina producătorului.</li><li>Lipsesc dimensiunile (producător: 740 x 405 x 830 mm) și greutatea (20 kg), necesare pentru amplasare.</li><li>Nu este atașat niciun manual, deși producătorul publică manualul WMS 5.3 în PDF.</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Tabel completat cu <b>dimensiuni 740 x 405 x 830 mm și 20 kg</b>, manualul producătorului atașat, turația confirmată, programele <b>Delicat/Normal/Evacuare</b> descrise; microdata cu sku, brand, gtin și availability.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Specificații aliniate cu albatros.ro</li><li>Taxa verde afișată (56,60 lei)</li><li>Imagine de sus cu panoul de comenzi lizibil</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Dimensiuni și greutate lipsă</h4><p>Tabelul nu are dimensiuni; producătorul indică net 740 x 405 x 830 mm și 20 kg.</p><div class="fix"><b>→</b> Adăugați dimensiunile nete, de colet și greutatea.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Manualul nu este atașat</h4><p>Nu există document atașat; manualul WMS 5.3 este public pe albatros.ro.</p><div class="fix"><b>→</b> Atașați PDF-ul manualului producătorului.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Turația 1350 rot/min de confirmat</h4><p>Pagina: 1350 rot/min și timpi 0–15 / 0–5 min; producătorul: fără turație, timpi 1–15 / 1–5 min.</p><div class="fix"><b>→</b> Confirmați turația și timpii cu producătorul.</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Programe nedescrise</h4><p>Imaginea arată selectorul Delicat/Normal/Evacuare; pagina nu menționează programele.</p><div class="fix"><b>→</b> Adăugați programele disponibile în descriere și tabel.</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · albatros.ro WMS 5.3 · manual WMS 5.3 (PDF Albatros)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">05</span><span class="of">/ 10</span></div>
+      <div class="cat">Espressoare</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/3/0/3055360_3.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Espressor cafea, Samus Latteccino 20, cafea macinata, 20 bar, 1350 W, capacitate 1.5 litri, rezervor lapte, 7 bauturi presetate, afisaj digital tactil, tehnologie Thermalblock, argintiu + negru" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="long">Espressor cafea, Samus Latteccino 20, cafea macinata, 20 bar, 1350 W, capacitate 1.5 litri, rezervor lapte, 7 bauturi presetate, afisaj digital tactil, tehnologie Thermalblock, argintiu + negru</h2>
+      <div class="sku">Cod produs 3055360</div>
+      <div class="pricebox"><div><div class="now">397,99 lei</div><div class="was">448,99 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/espressor-cafea-samus-latteccino-20-cafea-macinata-20-bar-1350-w-capacitate-1-5-litri-rezervor-lapte-7-bauturi-presetate-afisaj-digital-tactil-tehnologie-thermalblock-argintiu-negru/p/3055360" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Pagină bine documentată; tabelul indică 5 băuturi, manualul indică 7.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">1 de confirmat</span><span class="chip idea">1 îmbunătățire</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Titlul și descrierea: 7 băuturi presetate; tabelul (Funcții): „5 tipuri de băuturi”. Fișa din manual: 7.</li><li>Manualul atașat confirmă 1350 W, 20 bar, 1,5 l apă, 500 ml lapte, 3,63 kg și 205 x 374 x 300 mm.</li><li>Descrierea vorbește de „boabele de cafea” și „pompă italiană”; aparatul folosește cafea măcinată.</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Tabel aliniat cu manualul: <b>7 băuturi presetate</b> listate complet (inclusiv espresso rece); descriere fără „boabe” și „pompă italiană” nedovedite; microdata cu <b>sku, brand, gtin și availability</b>.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Manual RO cu fișa produsului atașat</li><li>Dimensiuni, greutăți și ambalaj complete</li><li>Taxa verde afișată (4,62 lei)</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues" style="grid-template-columns:repeat(3,1fr)"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p1">P1</span></div>
+          <h4>Număr de băuturi contradictoriu</h4><p>Titlu/descriere: 7 băuturi; tabel: „5 tipuri”; „Tip băutură” omite espresso rece. Manualul: 7.</p><div class="fix"><b>→</b> Corectați tabelul la 7 băuturi și listați-le complet.</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>„Pompă italiană” fără sursă</h4><p>Descrierea: pompă italiană de 20 bar; manualul și fișa produsului nu indică originea pompei.</p><div class="fix"><b>→</b> Eliminați „italiană” sau adăugați sursa producătorului.</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>„Boabe” vs cafea măcinată</h4><p>Descrierea: extrage aroma „din boabele de cafea”; manualul: doar cafea măcinată, fără râșniță.</p><div class="fix"><b>→</b> Reformulați: „din cafeaua măcinată”, ca în tabel.</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · manual Samus Latteccino 20 (fișa produsului, p. 13)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">06</span><span class="of">/ 10</span></div>
+      <div class="cat">Sisteme de duș</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/3/0/3051398_1.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Sistem dus AM.PM X-Joy S F0785B300, baterie termostatata, finisaj cromat" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Sistem dus AM.PM X-Joy S F0785B300, baterie termostatata, finisaj cromat</h2>
+      <div class="sku">Cod produs 3051398</div>
+      <div class="pricebox"><div><div class="now">769,00 lei</div><div class="was">899,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/sistem-dus-am-pm-x-joy-s-f0785b300-baterie-termostatata-finisaj-cromat/p/3051398" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Pagină bogată și coerentă; câteva valori tehnice cer confirmare.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">1 de confirmat</span><span class="chip idea">2 îmbunătățiri</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Descriere detaliată, tabel cu 27 atribute și 15 imagini proprii, plus video de prezentare</li><li>Tabelul indică material „ABC + alamă”, iar descrierea „alamă sanitară”; ABS probabil scris greșit</li><li>Manualul de instalare e menționat în pachet, dar pagina nu are secțiune de documente PDF</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Tabel aliniat cu descrierea (<b>ABS + alamă</b>), valorile cartușului confirmate din documentația AM.PM, <b>manual PDF</b> în „Ghiduri” și presiune de lucru/distanță racorduri pentru verificarea compatibilității înainte de montaj.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Conținut pachet listat clar, aliniat cu tabelul</li><li>Dimensiuni-cheie: Ø220/Ø120 mm, bară 103–146 cm</li><li>Garanție 5 ani PF afișată explicit</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p2">P2</span></div>
+          <h4>Material „ABC + alamă”</h4><p>Tabelul afișează „ABC + alamă”; descrierea spune doar „alamă sanitară”</p><div class="fix"><b>→</b> Corectare în „ABS + alamă” și aliniere cu descrierea</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Valori cartuș neverificabile</h4><p>Pagina afișează rezistență la 95 °C și „scăderi de presiune de până la 35 de bari”</p><div class="fix"><b>→</b> Confirmare cu fișa AM.PM; altfel eliminare sau reformulare</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p1">P1</span></div>
+          <h4>Lipsă manual / fișă tehnică PDF</h4><p>Nu există document descărcabil, deși manualul e inclus în pachet</p><div class="fix"><b>→</b> Publicare manual de instalare și fișă tehnică AM.PM</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Date tehnice structurate</h4><p>Lipsesc presiune de lucru, distanță racorduri, EAN în tabel</p><div class="fix"><b>→</b> Adăugare presiune min./max., distanță racorduri, EAN</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · căutare publică AM.PM X-Joy S (fără fișă oficială găsită)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">07</span><span class="of">/ 10</span></div>
+      <div class="cat">Brazi artificiali</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/8/1/8121830_1.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Brad artificial de Craciun, Bucovina, verde, 180 cm, suport inclus" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Brad artificial de Craciun, Bucovina, verde, 180 cm, suport inclus</h2>
+      <div class="sku">Cod produs 8121830</div>
+      <div class="pricebox"><div><div class="now">499,00 lei</div><div class="was">625,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/brad-artificial-de-craciun-bucovina-verde-180-cm-suport-inclus/p/8121830" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Ofertă clară cu variante de înălțime; meta description afișează cod HTML.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">2 de confirmate</span><span class="chip idea">1 îmbunătățire</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Meta description conține HTML brut („&lt;p style=…&gt;&lt;strong&gt;”) în loc de text</li><li>Selector de înălțime 180–500 cm funcțional; descrierea și tabelul coincid (95 cm, 365 crenguțe)</li><li>Fără brand/producător în tabel; recomandat și pentru spații publice, fără date de ignifugare</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt"><b>Meta description curat</b> (text simplu, ~150 caractere), brand și EAN în tabel, greutate și sistem de montaj, iar recomandarea pentru spații publice susținută de <b>informații de ignifugare</b> sau eliminată.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Descriere și tabel consecvente (180/95 cm, 365)</li><li>Variante de înălțime pe aceeași pagină</li><li>Suport metalic inclus, vizibil în imagini</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p1">P1</span></div>
+          <h4>Meta description cu HTML brut</h4><p>Câmpul meta afișează „&lt;p style=&quot;text-align: justify;&quot;&gt;&lt;strong&gt;Bradul…”</p><div class="fix"><b>→</b> Text simplu, fără taguri, generat din descriere</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Brand / producător lipsă</h4><p>Tabelul nu are câmp Brand; microdata nu are brand/gtin</p><div class="fix"><b>→</b> Adăugare brand (sau marcă proprie) și EAN</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Utilizare în spații publice</h4><p>Descrierea recomandă săli comerciale/publice; nu există date de ignifugare</p><div class="fix"><b>→</b> Adăugare clasă de reacție la foc sau eliminare recomandare</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Date utile lipsă</h4><p>Lipsesc greutatea, nr. de segmente și tipul de montaj (articulat/agățat)</p><div class="fix"><b>→</b> Completare greutate, segmente, sistem de montaj</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · HTML sursă (meta description) · fără sursă producător identificată</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">08</span><span class="of">/ 10</span></div>
+      <div class="cat">Gresie porțelanată</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/4/0/4017201_5.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Gresie exterior / interior portelanata Woodstyle 6060-0146, 30 x 60 cm, bej, mata, imitatie lemn" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Gresie exterior / interior portelanata Woodstyle 6060-0146, 30 x 60 cm, bej, mata, imitatie lemn</h2>
+      <div class="sku">Cod produs 4017201</div>
+      <div class="pricebox"><div><div class="now">49,90 lei/m²</div><div class="was">59,90 lei/m²</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/gresie-exterior/-interior-portelanata-woodstyle-6060-0146-30-x-60-cm-bej-mata-imitatie-lemn/p/4017201" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Logica m²/cutie e corectă; culoarea și uzul exterior cer clarificare.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">1 de confirmat</span><span class="chip idea">2 îmbunătățiri</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Preț pe m² și conversie corectă: 1 cutie = 1,26 m² = 62,87 lei (49,90 × 1,26)</li><li>Descrierea spune „nuanțe de maro”, iar titlul, tabelul și imaginile indică bej</li><li>Utilizare „exterior / interior” cu R9 și „Antiderapantă: nu”; fără fișă tehnică sau DoP</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Descriere aliniată la <b>bej</b>, uz exterior explicat prin R9 (ex. spații acoperite), <b>fișă tehnică + DoP Cesarom</b> în „Ghiduri”, plăci și kg pe cutie lângă calculatorul m².</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Unitate de vânzare m² ↔ cutie clară</li><li>Tabel bogat: PEI 4, R9, clasă pătare, îngheț</li><li>Tabel PEI explicativ pentru alegerea traficului</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p1">P1</span></div>
+          <h4>Culoare contradictorie</h4><p>Descrierea: „cromatică în nuanțe de maro”; titlu, tabel și imagini: bej</p><div class="fix"><b>→</b> Înlocuire cu „nuanțe de bej deschis”</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Exterior cu R9, neantiderapantă</h4><p>Pagina recomandă exterior; tabelul: R9, „Antiderapantă: nu”</p><div class="fix"><b>→</b> Precizare zone exterioare potrivite (ex. acoperite)</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p1">P1</span></div>
+          <h4>Lipsă fișă tehnică / DoP</h4><p>Nu există document Cesarom (fișă tehnică, declarație de performanță)</p><div class="fix"><b>→</b> Publicare fișă tehnică și DoP Cesarom</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Plăci pe cutie și greutate</h4><p>Se afișează 1,26 m²/cutie, dar nu nr. plăci (calculat 7) și greutatea</p><div class="fix"><b>→</b> Afișare „7 plăci/cutie” (după confirmare) și kg/cutie</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · căutare cesarom.ro (fără pagină Woodstyle publică)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">09</span><span class="of">/ 10</span></div>
+      <div class="cat">Birouri gaming</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/8/1/8114375_5_3.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Birou gaming reglabil Doctor Shield Nova, electric, negru, 140 x 60 x 70 cm, 1C" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Birou gaming reglabil Doctor Shield Nova, electric, negru, 140 x 60 x 70 cm, 1C</h2>
+      <div class="sku">Cod produs 8114375</div>
+      <div class="pricebox"><div><div class="now">748,99 lei</div><div class="was">899,00 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/birou-gaming-reglabil-doctor-shield-nova-electric-negru-140-x-60-x-70-cm-1c/p/8114375" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Descriere convingătoare, dar date-cheie lipsesc din tabelul tehnic.</div><div class="score"><span class="chip gap">1 de confirmat</span><span class="chip idea">3 îmbunătățiri</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Descrierea afirmă 80 kg sarcină, 50.000 de cicluri și 2 memorii; tabelul nu le include</li><li>Tabel scurt (13 atribute): fără greutate produs, sarcină maximă, nr. motoare</li><li>Taxa verde 1,00 lei afișată; fără manual de asamblare PDF, deși produsul vine demontat</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Tabel complet: <b>sarcină 80 kg</b>, nr. motoare, cicluri, memorii, <b>greutate 24 kg</b>, înălțime minimă confirmată (70 vs 75 cm), „1 colet” explicit și manual de asamblare PDF.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Interval 70–115 cm consecvent descriere/tabel</li><li>Imagini cu dimensiuni și accesorii</li><li>Taxa verde și „necesită asamblare” afișate</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p1">P1</span></div>
+          <h4>Înălțime minimă: 70 sau 75 cm</h4><p>Pagina: 70–115 cm; site-ul Doctor Shield: 75–115 cm în tabel</p><div class="fix"><b>→</b> Confirmare cu producătorul și aliniere titlu/tabel</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p1">P1</span></div>
+          <h4>Date tehnice doar în text</h4><p>80 kg, 50.000 cicluri, 2 memorii apar doar în descriere</p><div class="fix"><b>→</b> Mutare în tabel: sarcină, cicluri, memorii, motoare</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Greutate și colet lipsă</h4><p>Producătorul indică 24 kg; pagina nu are greutate; „1C” neexplicat</p><div class="fix"><b>→</b> Adăugare greutate și „1 colet” în locul „1C”</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>Manual de asamblare</h4><p>Produs livrat demontat, fără instrucțiuni PDF pe pagină</p><div class="fix"><b>→</b> Publicare manual de asamblare</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live + HTML 09.11.2026 · doctorshield.ro (Nova 140×60)</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide">
+  <div class="prod">
+    <aside class="side">
+      <div class="idx"><span class="num">10</span><span class="of">/ 10</span></div>
+      <div class="cat">Aspiratoare profesionale</div>
+      <div class="imgbox"><img src="https://cdn.dedeman.ro/media/catalog/product/1/0/1040099_2.jpg?canvas=700%3A700&amp;fit=bounds&amp;height=700&amp;optimize=low&amp;width=700" alt="Aspirator profesional, aspirare uscata, Karcher T 7/1 1.527-181.0, cu sac, furtun 2 m, 7.5 l, 850 W" referrerpolicy="no-referrer" loading="lazy"></div>
+      <h2 class="">Aspirator profesional, aspirare uscata, Karcher T 7/1 1.527-181.0, cu sac, furtun 2 m, 7.5 l, 850 W</h2>
+      <div class="sku">Cod produs 1040099</div>
+      <div class="pricebox"><div><div class="now">519,00 lei</div><div class="was">599,99 lei</div></div>
+        <div class="pr">Black Friday, până la 15.11.2026<br><a href="https://www.dedeman.ro/ro/aspirator-profesional-aspirare-uscata-karcher-t-7/1-1-527-181-0-cu-sac-furtun-2-m-7-5-l-850-w/p/1040099" target="_blank" rel="noopener">Vezi pagina ↗</a></div></div>
+    </aside>
+    <div class="main dense">
+      <div class="verdict"><div class="v">Cea mai bine documentată pagină; mici diferențe față de fișa Kärcher.</div><div class="score"><span class="chip fail">1 eroare confirmată</span><span class="chip gap">2 de confirmate</span><span class="chip idea">1 îmbunătățire</span></div></div>
+      <div class="cmp">
+        <div class="col"><h3>● Implementare actuală</h3><ul><li>Manual Kärcher PDF disponibil și taxa verde 4,50 lei afișată</li><li>Descrierea dă 23,0 kPa, tabelul 23,5 kPa (fișa Kärcher: 235 mbar / 23,5 kPa)</li><li>Recipient 7,5 l în titlu/tabel; fișa Kärcher actuală indică 7 l (alte surse Kärcher: 7,5 l)</li></ul></div>
+        <div class="col rec"><h3>✦ Implementare recomandată</h3><div class="tgt">Valori unice pe pagină (<b>23,5 kPa</b>), capacitate confirmată pentru 1.527-181.0, listă accesorii identică cu fișa Kärcher, plus <b>EAN</b> și debit 40 l/s în tabel și în schema.</div><div class="keep">Ce funcționează deja</div><ul class="good"><li>Manual de utilizare PDF atașat</li><li>Putere, cablu, dB, dimensiuni = fișa Kärcher</li><li>Accesorii incluse enumerate</li></ul></div>
+      </div>
+      <div class="sect">Constatări & corecții</div>
+      <div class="issues four"><div class="issue fail"><div class="hd"><span class="chip fail">Eroare confirmată</span><span class="chip sev p2">P2</span></div>
+          <h4>Vacuum: 23,0 vs 23,5 kPa</h4><p>Descrierea: 23,0 kPa; tabelul și fișa Kärcher: 23,5 kPa</p><div class="fix"><b>→</b> Uniformizare la 23,5 kPa</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Capacitate recipient 7 vs 7,5 l</h4><p>Pagina: 7,5 l; fișa Kärcher actuală: 7 l</p><div class="fix"><b>→</b> Confirmare cu Kärcher pentru 1.527-181.0</div></div><div class="issue gap"><div class="hd"><span class="chip gap">De confirmat</span><span class="chip sev p2">P2</span></div>
+          <h4>Saci filtru dublați în listă</h4><p>Accesorii: „sac filtru fleece” și „pungă filtru din pâslă”; Kärcher: 1 sac</p><div class="fix"><b>→</b> Listă accesorii conform fișei Kärcher</div></div><div class="issue idea"><div class="hd"><span class="chip idea">Îmbunătățire</span><span class="chip sev p2">P2</span></div>
+          <h4>EAN și debit aer</h4><p>Lipsesc EAN 4039784997073 și debitul de 40 l/s</p><div class="fix"><b>→</b> Adăugare EAN și debit de aer în tabel</div></div></div>
+      <div class="foot"><span class="srcline"><b>Surse:</b> pagina live 09.11.2026 · fișă Kärcher 1.527-181.0 · karcher.com/ro T 7/1 Classic</span><span>Pagina live verificată pe 9 noiembrie 2026</span></div>
+    </div>
+  </div>
+  <div class="bar"><i></i></div></section><section class="slide pad">
+  <div class="kicker">Tipare comune</div>
+  <h2 class="title">Problemele se repetă — deci se pot rezolva sistematic</h2>
+  <p class="sub">Cauza comună: aceeași informație e introdusă în mai multe locuri (titlu, descriere, tabel, documente), fără o sursă unică verificată cu producătorul.</p>
+  <div class="pats"><div class="pat"><div class="big">5×</div><h3>Date care se contrazic</h3><p>Aceeași caracteristică are valori diferite în titlu, descriere, tabel sau documentul atașat.</p><div class="ex">Fotoliu 110 vs 80 kg · espressor 5 vs 7 băuturi · gresie maro vs bej · aspirator 23,0 vs 23,5 kPa</div></div><div class="pat"><div class="big">5×</div><h3>Afirmații fără sursă</h3><p>Promisiuni de performanță sau sănătate pe care documentația nu le susține.</p><div class="ex">AC: „distruge virușii” · prosop: „de 3 ori mai multă apă” · duș: „35 de bari”</div></div><div class="pat"><div class="big">5×</div><h3>Date esențiale doar în text sau lipsă</h3><p>Informații care decid achiziția nu apar în tabelul tehnic, deci nici în filtre.</p><div class="ex">Dimensiuni Albatros · sarcină și greutate birou · brand fotoliu și brad · plăci/cutie gresie</div></div><div class="pat"><div class="big">5×</div><h3>Documente lipsă</h3><p>Manuale, fișe tehnice sau etichete pe care producătorul le publică, dar pagina nu le leagă.</p><div class="ex">Etichetă energetică AC · manual Albatros · manual duș · manual birou · DoP gresie</div></div><div class="pat"><div class="big">4×</div><h3>Diferențe față de producător</h3><p>Valori de pe pagină care diferă de site-ul sau fișa producătorului.</p><div class="ex">Putere și debit AC · înălțime birou 70 vs 75 cm · recipient aspirator 7 vs 7,5 l</div></div><div class="pat"><div class="big">10/10</div><h3>SEO tehnic incomplet</h3><p>Aceleași lipsuri de schema și meta pe toate paginile — o singură corecție în șablon.</p><div class="ex">Fără JSON-LD · fără brand/sku/GTIN/disponibilitate · alt gol pe prima imagine</div></div></div>
+  <div class="bar"><i></i></div></section><section class="slide pad">
+  <div class="kicker">SEO & date structurate</div>
+  <h2 class="title">Aceleași lipsuri pe toate paginile</h2>
+  <p class="sub">Verificat pe codul paginilor live. Pentru că vin din șablonul platformei, o singură corecție se propagă pe întregul catalog.</p>
+  <div class="seo"><div class="row"><div class="big">0/10</div><div><h3>JSON-LD Product</h3><p>Nicio pagină nu are JSON-LD. Microdata are nume, imagini și preț, dar <b>fără brand, sku, GTIN și disponibilitate</b> — câmpuri cerute de Google pentru rezultatele de produs și Shopping.</p></div></div><div class="row"><div class="big">10/10</div><div><h3>Recenzii goale în schema</h3><p>Fiecare pagină emite noduri <code>Review</code> fără autor, notă sau dată, iar <code>priceValidUntil</code> are formatul <code>2026-11-15 00:00:00</code>, nu ISO 8601.</p></div></div><div class="row"><div class="big">9/10</div><div><h3>Meta description din șablon</h3><p><code>&lt;titlu&gt; la Dedeman.ro. Aflati informatii despre pret si disponibilitate…</code> — iar la brad apare <b>cod HTML brut</b> în locul textului.</p></div></div><div class="row"><div class="big">2</div><div><h3>Titluri de peste 200 de caractere</h3><p>Aerul condiționat (201) și espressorul (203); alte 5 pagini depășesc 100 de caractere. Google afișează aproximativ 60.</p></div></div><div class="row"><div class="big">10/10</div><div><h3>Alt text</h3><p>Prima imagine din galerie are <b>alt gol</b>; celelalte repetă integral titlul, fără să descrie unghiul sau detaliul.</p></div></div><div class="row"><div class="big">✓</div><div><h3>Ce funcționează</h3><p>Canonical corect pe toate paginile, redirecționări 301 pentru URL-urile vechi, rating consecvent, taxa verde afișată la electrocasnice.</p></div></div></div>
+  <div class="bar"><i></i></div></section><section class="slide pad">
+  <div class="kicker">Anexă · produse din lista anterioară</div>
+  <h2 class="title">Ce am reverificat azi din prima analiză</h2>
+  <p class="sub">În prima săptămână a lunii, „Alegeri populare” conținea alte produse. Am reverificat live constatările principale: patru sunt încă prezente, una a fost deja corectată.</p>
+  <div class="seo" style="grid-template-columns:1fr"><div class="row"><div class="big" style="font-size:22px;min-width:auto"><span class="chip fail">încă prezent</span></div><div><h3>Congelator Samus SCXE346NFE</h3><p>Descrierea încă spune „SCXE346NF”; tabelul are „7 rafturi” vs „4 sertare + 2 rafturi” în titlu. Manualul atașat indică 308 kWh/an — valoarea altui model (SCXE342NF); EPREL confirmă 246.</p></div></div><div class="row"><div class="big" style="font-size:22px;min-width:auto"><span class="chip fail">încă prezent</span></div><div><h3>Kit Meliconi Torre Basic 656100</h3><p>Galeria încă include o imagine cu ambalajul altui model (Torre Style L60), care are alte limite de compatibilitate.</p></div></div><div class="row"><div class="big" style="font-size:22px;min-width:auto"><span class="chip fail">încă prezent</span></div><div><h3>Ceresit CT 19, 24 kg</h3><p>Tabelul încă spune uscare 2–6 h; fișa tehnică atașată (02/2026) indică ≈ 1 h pe suport absorbant și ≈ 2 h pe neabsorbant.</p></div></div><div class="row"><div class="big" style="font-size:22px;min-width:auto"><span class="chip fail">încă prezent</span></div><div><h3>Activator Saratoga 1100 g</h3><p>Pagina nu are doza și modul de aplicare, deși producătorul le publică; „nu corodează și nu poluează” nu apare în documentația producătorului.</p></div></div><div class="row"><div class="big" style="font-size:22px;min-width:auto"><span class="chip idea">rezolvat</span></div><div><h3>Vopsea Sticky 15 L + amorsă 4 L</h3><p>Rezolvat între timp: tabelul spune acum „Amorsă inclusă: da”, iar consumul (12–16 m²/L) corespunde fișei tehnice.</p></div></div></div>
+  <div class="bar"><i></i></div></section><section class="slide dark pad">
+  <div class="kicker">Recomandări</div>
+  <h2 class="title" style="color:#fff">De la 10 pagini la un catalog consecvent</h2>
+  <div class="steps" style="margin-top:56px;gap:52px 56px"><div class="step"><div class="big">1</div><div><h3>Corecții rapide (P1)</h3><p>Etichetă energetică AC, sarcina fotoliului, numărul de băuturi la espressor, culoarea gresiei, meta description brad.</p></div></div><div class="step"><div class="big">2</div><div><h3>Documente atașate</h3><p>Manuale, fișe tehnice și etichete legate pe fiecare pagină; documentele înlocuite retrase de pe CDN.</p></div></div><div class="step"><div class="big">3</div><div><h3>O singură sursă de adevăr</h3><p>Atributele se completează o dată, din documentul producătorului, și alimentează titlul, tabelul, filtrele și descrierea.</p></div></div><div class="step"><div class="big">4</div><div><h3>SEO în șablon</h3><p>JSON-LD Product cu brand, sku, GTIN și disponibilitate; fără recenzii goale; meta description și alt text generate din atribute.</p></div></div><div class="step"><div class="big">5</div><div><h3>Verificare automată</h3><p>Reguli înainte de publicare: cifre diferite între câmpuri, afirmații fără sursă, documente lipsă, câmpuri obligatorii goale.</p></div></div><div class="step"><div class="big">6</div><div><h3>Extindere la catalog</h3><p>Același audit, automatizat, pe categoriile cu cele mai multe vânzări, cu un raport periodic al calității datelor.</p></div></div></div>
+  <div class="bar"><i></i></div></section><section class="slide dark cover">
+  <div class="kicker">Următorul pas</div>
+  <h1 style="font-size:78px">Vă prezentăm<br>auditul în <span>30 de minute.</span></h1>
+  <p class="lead">Putem parcurge împreună constatările, prioritățile și modul în care verificarea poate rula automat pe întregul catalog dedeman.ro.</p>
+  <div class="meta"><div>Contact<b>Makeitfuture</b></div><div>Web<b>makeitfuture.com</b></div><div>Analiză realizată<b>9 noiembrie 2026</b></div></div>
+  <div class="bar"><i></i></div></section></div></div>
+<div id="hint">← → navigare · O vedere de ansamblu · Ctrl+P export PDF</div>
+<div id="hud"><button id="pv" aria-label="Înapoi">‹</button><span id="cnt"></span><button id="nx" aria-label="Înainte">›</button></div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let cur=0;
+const stage=document.getElementById('stage'),cnt=document.getElementById('cnt');
+function fit(){const s=Math.min(innerWidth/1660,innerHeight/950);stage.style.transform=`scale(${s})`;}
+function go(n){n=Math.max(0,Math.min(slides.length-1,n));slides.forEach((s,i)=>{s.classList.toggle('active',i===n);s.classList.toggle('prev',i<n)});
+  cur=n;cnt.textContent=`${n+1} / ${slides.length}`;document.querySelectorAll('.bar i').forEach(b=>b.style.width=((n+1)/slides.length*100)+'%');
+  history.replaceState(null,'','#'+(n+1));}
+addEventListener('resize',fit);
+addEventListener('keydown',e=>{if(e.key==='o'||e.key==='O'||e.key==='Escape'){if(e.key==='Escape')document.body.classList.remove('grid');else document.body.classList.toggle('grid');if(!document.body.classList.contains('grid'))fit();return}
+  if(document.body.classList.contains('grid'))return;
+  if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();go(cur+1)}
+  if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();go(cur-1)}
+  if(e.key==='Home')go(0);if(e.key==='End')go(slides.length-1)});
+slides.forEach((s,i)=>s.addEventListener('click',e=>{if(document.body.classList.contains('grid')){document.body.classList.remove('grid');fit();go(i)}}));
+document.querySelectorAll('[data-go]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();go(+a.dataset.go)}));
+document.getElementById('nx').onclick=()=>go(cur+1);document.getElementById('pv').onclick=()=>go(cur-1);
+let tx=null;addEventListener('touchstart',e=>tx=e.touches[0].clientX);addEventListener('touchend',e=>{if(tx===null)return;const d=e.changedTouches[0].clientX-tx;if(Math.abs(d)>50)go(cur+(d<0?1:-1));tx=null});
+setTimeout(()=>document.getElementById('hint').classList.add('off'),5000);
+fit();go(Math.max(0,(parseInt(location.hash.slice(1))||1)-1));
+</script><script>
+(function(){
+  const stage=document.getElementById('stage');
+  function fitAll(){
+    const W=innerWidth,H=innerHeight;
+    const stack=W<900||W/H<1.15;
+    document.body.classList.toggle('stack',stack);
+    if(stack){document.documentElement.style.setProperty('--s',((W-16)/1600).toFixed(4));return}
+    const s=Math.min((W-48)/1600,(H-120)/900);
+    stage.style.transform=`scale(${s})`;
+  }
+  addEventListener('resize',fitAll);addEventListener('orientationchange',()=>setTimeout(fitAll,200));
+  fitAll();
+})();
+</script></body></html>
